@@ -155,7 +155,7 @@ def print_LC(train_loss, path):
 
     return
 
-def print_2D(psi_true, psi_t, path, potential, p = 'an', idx = [5,10,25,50]):
+def print_2D(psi_true, psi_t, path, potential, p = 'an', idx = [5,10,25,50], fix=True):
     if type(psi_true) == list:
         psi_true = np.array(psi_true)
     elif type(psi_true) == torch.Tensor:
@@ -178,7 +178,7 @@ def print_2D(psi_true, psi_t, path, potential, p = 'an', idx = [5,10,25,50]):
     line = 1.0
     style = 'dashed'
     fs = 12
-    fig, axs = plt.subplots(3,4,figsize=(8,6), sharex=True, sharey=True, layout='constrained')
+    fig, axs = plt.subplots(3, 4, figsize=(8,6), sharex=True, sharey=True, layout='constrained')
     plt.subplots_adjust(left=0.08,
                         bottom=0.1,
                         right=0.95,
@@ -205,6 +205,19 @@ def print_2D(psi_true, psi_t, path, potential, p = 'an', idx = [5,10,25,50]):
     psi_diff_2 = axs[2][1].pcolormesh(X,Y,(abs(psi_true-psi_t))[idx[1]],shading='auto')
     psi_diff_5 = axs[2][2].pcolormesh(X,Y,(abs(psi_true-psi_t))[idx[2]],shading='auto')
     psi_diff_7 = axs[2][3].pcolormesh(X,Y,(abs(psi_true-psi_t))[idx[3]],shading='auto')
+    if fix:
+        psi1.set_clim(0,0.35)
+        psi2.set_clim(0,0.35)
+        psi5.set_clim(0,0.35)
+        psi10.set_clim(0,0.35)
+        psi_pred_1.set_clim(-0.005,0.35)
+        psi_pred_2.set_clim(-0.005,0.35)
+        psi_pred_5.set_clim(-0.005,0.35)
+        psi_pred_10.set_clim(-0.005,0.35)
+        psi_diff_1.set_clim(0,0.0405)
+        psi_diff_2.set_clim(0,0.0405)
+        psi_diff_5.set_clim(0,0.0405)
+        psi_diff_7.set_clim(0,0.0405)
     axs[0][0].set_title('t = '+str(t[idx[0]])+' a.u.')
     axs[0][1].set_title('t = '+str(t[idx[1]])+' a.u.')
     axs[0][2].set_title('t = '+str(t[idx[2]])+' a.u.')
@@ -223,7 +236,80 @@ def print_2D(psi_true, psi_t, path, potential, p = 'an', idx = [5,10,25,50]):
 
     return
 
-def train_DON(model, ntrain, train_loader, optimizer, scheduler, device, epoches, lf):
+def print_2D_single(psi_true, psi_t, path, potential, p = 'an', idx = 5):
+    if type(psi_true) == list:
+        psi_true = np.array(psi_true)
+    elif type(psi_true) == torch.Tensor:
+        psi_true = psi_true.cpu()
+
+    if type(psi_t) == list:
+        psi_t = np.array(psi_t)
+    elif type(psi_t) == torch.Tensor:
+        psi_t = psi_t.cpu()
+    t = np.linspace(0,10,51)
+    X, Y = np.meshgrid(np.linspace(-9,9,65), np.linspace(-9,9,65))
+    V_pot = potential
+    if p == 'hh':
+        level = np.linspace(0, np.sqrt(120), 10)
+    else:
+        level = np.linspace(0, np.sqrt(800), 10)
+    level = level**2
+    mycmap = plt.get_cmap('hot_r')
+    mycmap2 = plt.get_cmap('hot')
+    line = 1.0
+    style = 'dashed'
+    fs = 12
+    fig, axs = plt.subplots(3, 1, figsize=(3,6), sharex=True, sharey=True, layout='constrained')
+    plt.subplots_adjust(left=0.08,
+                        bottom=0.1,
+                        right=0.95,
+                        top=0.95,
+                        wspace=0.15,
+                        hspace=0.1)
+    axs[0].contour(X, Y, V_pot, level, cmap=mycmap,linestyles=style,linewidths=line)
+    axs[1].contour(X, Y, V_pot, level, cmap=mycmap,linestyles=style,linewidths=line)
+    psi = axs[0].pcolormesh(X,Y,(psi_true)[idx],shading='auto', cmap=mycmap2)
+    psi_pred = axs[1].pcolormesh(X,Y,(psi_t)[idx],shading='auto', cmap=mycmap2)  
+    psi_diff = axs[2].pcolormesh(X,Y,(abs(psi_true-psi_t))[idx],shading='auto')
+    if idx == 50:
+        psi_diff.set_clim(0,0.0405)
+    elif idx == 25:
+        psi_diff.set_clim(0,0.0206)
+    elif idx == 10:
+        psi_diff.set_clim(0,0.03)
+    axs[0].set_title('t = '+str(t[idx])+' a.u.')
+    cb1 = fig.colorbar(psi)
+    cb2 = fig.colorbar(psi_pred)
+    cb3 = fig.colorbar(psi_diff)
+    cb1.set_label('$|\psi|^2$', fontsize = fs)
+    cb2.set_label('$|\psi|^2$', fontsize = fs)
+    cb3.set_label('$|\Delta|\psi|^2|$', fontsize = fs)
+    if idx == 25:
+        #xticks = cb3.get_ticks()
+        #cb3.set_ticklabels(['0.00', '','0.01', '', '0.02'])
+        cb3.ax.locator_params(nbins=3)
+    plt.setp(axs[-1], xlabel='$q_2$ (a.u.)')
+    plt.setp(axs, ylabel='$q_1$ (a.u.)')
+    plt.savefig(path)
+    print('Comparsion figure saved at ', path)
+    return
+
+def print_1D(psi_true, psi_t, path, potential, title):
+    x = np.linspace(-9,9,65)
+    fig, ax = plt.subplots(figsize=(10, 10), tight_layout=True)
+    ax.grid()
+    ax2 = ax.twinx()
+    ax.set_xlabel('$q_2$ (a.u.)')
+    ax.set_ylabel('$|\psi|^2$')
+    ax2.set_ylabel("$V (a.u.)$")
+    ax.set_title(title)
+    line, = ax.plot(x, psi_t, 'r-', lw=2)
+    lineS2, = ax2.plot(x, potential, 'k-', lw=2)
+    lineS3, = ax.plot(x, psi_true, 'b-', lw=2)
+    plt.savefig(path)
+    return
+
+def train_DON(model, ntrain, train_loader, optimizer, scheduler, device, epoches, lf, save_path = False):
     training_loss = []
     print('Training model...')
     print(f'{"Epochs":16}{"train_h1"}{" ":10}{"train_mse"}')
@@ -250,6 +336,8 @@ def train_DON(model, ntrain, train_loader, optimizer, scheduler, device, epoches
         if (e%100==0) or e == epoches-1:
             print(f'{str(e):16}{train_h1:.8f}{" ":8}{train_mse:.8f}')
         training_loss.append([train_h1, train_mse])
+    if save_path:
+        torch.save(model, save_path)
     return model, training_loss
 
 def test_DON(model, ntest, test_loader, device, lf, save_path = False, save_potential=False):
@@ -292,7 +380,7 @@ def test_DON(model, ntest, test_loader, device, lf, save_path = False, save_pote
                 torch.save(torch.from_numpy(np.array(V)), save_path+'-V.pt')
     return pred_out, true_out
 
-def train_FNO(model, ntrain, train_loader, optimizer, scheduler, device, epoches, lf):
+def train_FNO(model, ntrain, train_loader, optimizer, scheduler, device, epoches, lf, save_path = False):
     training_loss = []
     print('Training model...')
     print(f'{"Epochs":16}{"train_h1"}{" ":10}{"train_mse"}')
@@ -318,6 +406,8 @@ def train_FNO(model, ntrain, train_loader, optimizer, scheduler, device, epoches
         if (e%100==0) or e == epoches-1:
             print(f'{str(e):16}{train_h1:.8f}{" ":8}{train_mse:.8f}')
         training_loss.append([train_h1, train_mse])
+    if save_path:
+        torch.save(model, save_path)
     return model, training_loss
 
 def test_FNO(model, ntest, test_loader, device, lf, save_path = False, save_potential=False):

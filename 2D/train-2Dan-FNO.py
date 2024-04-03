@@ -3,7 +3,8 @@ import torch
 import matplotlib.pyplot as plt
 from helper import setup_FNO, dataloader_FNO, print_LC, print_2D, train_FNO, test_FNO
 from neuraloperator.loss import H1Loss
-
+import os
+cwd = os.getcwd()
 random_seed = 1997
 torch.manual_seed(random_seed)
 torch.cuda.manual_seed(random_seed)
@@ -25,10 +26,11 @@ save_potential = True
 lr = 0.009
 step = 50
 gamma = 0.99
-data_path = '/home/leek97/ML/data/data-2D/'+name+'.pt'
-lc_path = '/home/leek97/ML/picture/' + name + '-LC.png'
-compare_path = '/home/leek97/ML/picture/' + name + '-compare.png'
-result_path = '/home/leek97/ML/result/' + name
+data_path = cwd+'/data/'+name+'.pt'
+lc_path = cwd+'/picture/' + name + '-LC.png'
+compare_path = cwd+'/picture/' + name + '-compare.png'
+result_path = cwd+'/result/' + name
+save_path = cwd+'/model/alllambda-anharmonic.pt'
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 #load data
@@ -39,7 +41,7 @@ model, optimizer, scheduler = setup_FNO(device, width, modes1, modes2, modes3, i
 lf = H1Loss(d=dim)
 
 #train the model
-model, training_loss = train_FNO(model, ntrain, train_loader, optimizer, scheduler, device, epochs, lf)
+model, training_loss = train_FNO(model, ntrain, train_loader, optimizer, scheduler, device, epochs, lf, save_path=save_path)
 
 #print the learning curve
 loss = np.array(training_loss)
@@ -49,8 +51,8 @@ print_LC(loss_h1, lc_path)
 
 #evulation and print the result
 pred_out, true_out = test_FNO(model, ntest, test_loader, device, lf, result_path, save_potential=save_potential)
-psi_t = pred_out[0][10]
-psi_true = true_out[0][10]
+psi_t = pred_out[1][10]
+psi_true = true_out[1][10]
 for i, (x, y) in enumerate(test_loader):
     if i == 0:
         V = x[10,-1,0,:,:]
